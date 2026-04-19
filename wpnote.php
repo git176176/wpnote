@@ -2,7 +2,7 @@
 /*
 Plugin Name: WPNote
 Description: 图文笔记插件，支持emoji文字封面和瀑布流展示
-Version: 1.3.1
+Version: 1.3.2
 */
 
 if (!defined('ABSPATH')) exit;
@@ -673,6 +673,8 @@ class WPNote_Plugin {
         echo '</div>';
         
         // 首页布局设置
+        $archive_columns = get_option('wpnote_archive_columns', 4);
+        $archive_style = get_option('wpnote_archive_style', 'waterfall');
         echo '<div class="wpnote-card2"><h2>📊 首页布局设置</h2>';
         echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0;">';
         // 布局样式
@@ -701,9 +703,6 @@ class WPNote_Plugin {
         $page_bg_color = get_option('wpnote_page_bg_color', '#f5f5f7');
         $cover_ratio = get_option('wpnote_cover_ratio', '3/4');
         $cover_width = get_option('wpnote_cover_width', 45);
-        // 首页布局设置
-        $archive_columns = get_option('wpnote_archive_columns', 4);
-        $archive_style = get_option('wpnote_archive_style', 'waterfall');
         echo '<input type="text" name="wpnote_signature" value="' . $sig_val . '" placeholder="留空则显示站点名称和描述" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:8px;">';
         echo '<p style="font-size:12px;color:#888;margin:0;">';
         $blogname = htmlspecialchars(get_bloginfo('name'), ENT_QUOTES, 'UTF-8');
