@@ -2,7 +2,7 @@
 /*
 Plugin Name: WPNote
 Description: 图文笔记插件，支持emoji文字封面和瀑布流展示
-Version: 1.3.0
+Version: 1.3.1
 */
 
 if (!defined('ABSPATH')) exit;
@@ -601,6 +601,9 @@ class WPNote_Plugin {
             update_option('wpnote_page_bg_color', isset($_POST['wpnote_page_bg_color']) ? sanitize_hex_color($_POST['wpnote_page_bg_color']) : '#f5f5f7');
             update_option('wpnote_cover_ratio', isset($_POST['wpnote_cover_ratio']) ? sanitize_text_field($_POST['wpnote_cover_ratio']) : '3/4');
             update_option('wpnote_cover_width', isset($_POST['wpnote_cover_width']) ? intval($_POST['wpnote_cover_width']) : 45);
+            // 首页布局设置
+            update_option('wpnote_archive_columns', isset($_POST['wpnote_archive_columns']) ? intval($_POST['wpnote_archive_columns']) : 4);
+            update_option('wpnote_archive_style', isset($_POST['wpnote_archive_style']) ? sanitize_text_field($_POST['wpnote_archive_style']) : 'waterfall');
             echo '<div class="notice notice-success"><p>设置已保存</p></div>';
         }
 
@@ -668,6 +671,25 @@ class WPNote_Plugin {
         echo '<select name="site_theme" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">' . $theme_opts . '</select>';
         echo '<p style="margin:8px 0 0;font-size:12px;color:#888;">设置首页的默认皮肤，访客进入时会应用此主题。笔记页面皮肤的设置在写笔记时的「文字封面」面板中。</p>';
         echo '</div>';
+        
+        // 首页布局设置
+        echo '<div class="wpnote-card2"><h2>📊 首页布局设置</h2>';
+        echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0;">';
+        // 布局样式
+        echo '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">布局样式</label>';
+        $style_opts = array('waterfall'=>'瀑布流','grid'=>'网格布局');
+        $style_select = '<select name="wpnote_archive_style" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">';
+        foreach ($style_opts as $sv => $sl) { $ssel = ($sv === $archive_style) ? 'selected' : ''; $style_select .= '<option value="' . esc_attr($sv) . '" ' . $ssel . '>' . esc_html($sl) . '</option>'; }
+        $style_select .= '</select>';
+        echo $style_select . '</div>';
+        // 列数
+        echo '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">列数</label>';
+        echo '<select name="wpnote_archive_columns" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">';
+        for ($c = 3; $c <= 6; $c++) { $csel = ($c === intval($archive_columns)) ? 'selected' : ''; echo '<option value="' . $c . '" ' . $csel . '>' . $c . ' 列</option>'; }
+        echo '</select></div>';
+        echo '</div>';
+        echo '<p style="font-size:12px;color:#888;margin:8px 0 0;">瀑布流：卡片高度不固定，自动填充；网格布局：卡片高度统一</p>';
+        echo '</div>';
 
         echo '<div class="wpnote-card2"><h2>📝 笔记页底部签名</h2>';
         $sig_val = esc_attr(get_option('wpnote_signature', ''));
@@ -679,6 +701,9 @@ class WPNote_Plugin {
         $page_bg_color = get_option('wpnote_page_bg_color', '#f5f5f7');
         $cover_ratio = get_option('wpnote_cover_ratio', '3/4');
         $cover_width = get_option('wpnote_cover_width', 45);
+        // 首页布局设置
+        $archive_columns = get_option('wpnote_archive_columns', 4);
+        $archive_style = get_option('wpnote_archive_style', 'waterfall');
         echo '<input type="text" name="wpnote_signature" value="' . $sig_val . '" placeholder="留空则显示站点名称和描述" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:8px;">';
         echo '<p style="font-size:12px;color:#888;margin:0;">';
         $blogname = htmlspecialchars(get_bloginfo('name'), ENT_QUOTES, 'UTF-8');

@@ -140,6 +140,10 @@ else{ $args['orderby']='date'; $args['order']='DESC'; }
 $notes = new WP_Query($args);
 $cats = get_terms(array('taxonomy'=>'wpnote_category','hide_empty'=>false));
 $archive_url = get_post_type_archive_link('wpnote');
+
+// 首页布局设置
+$archive_columns = get_option('wpnote_archive_columns', 4);
+$archive_style = get_option('wpnote_archive_style', 'waterfall');
 ?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
@@ -233,7 +237,7 @@ a:hover{text-decoration:none}
 
 
 /* ===== MAIN ===== */
-.main{flex:1;min-width:0;padding:40px 44px 60px;max-width:920px}
+.main{flex:1;min-width:0;padding:40px 44px 60px}
 .main-head{
     display:flex;align-items:baseline;justify-content:space-between;
     margin-bottom:32px;padding-bottom:18px;
@@ -252,9 +256,9 @@ a:hover{text-decoration:none}
 }
 
 /* ===== GRID ===== */
-.grid{columns:3;column-gap:16px}
-@media(max-width:960px){.grid{columns:2}}
-@media(max-width:580px){.grid{columns:1}}
+.grid{<?php echo $archive_style === 'grid' ? 'display:grid;grid-template-columns:repeat(' . intval($archive_columns) . ',1fr);gap:16px' : 'columns:' . intval($archive_columns) . ';column-gap:16px'; ?>}
+@media(max-width:960px){.grid{<?php echo $archive_style === 'grid' ? 'grid-template-columns:repeat(3,1fr)' : 'columns:3'; ?>}}
+@media(max-width:768px){.grid{<?php echo $archive_style === 'grid' ? 'grid-template-columns:repeat(2,1fr);gap:12px' : 'columns:2;column-gap:12px'; ?>}}
 
 /* ===== CARD ===== */
 .card{
@@ -293,6 +297,10 @@ a:hover{text-decoration:none}
 .card-cat{font-size:10px;font-weight:700;color:<?php echo $t['tag_color'];?>;letter-spacing:0.02em}
 .card-time{font-size:10px;opacity:0.35}
 
+/* 网格布局 */
+.grid.is-grid .card{display:flex;flex-direction:column}
+.grid.is-grid .card-cv,.grid.is-grid .card-img{flex:1;min-height:0}
+
 /* 空状态 */
 .empty{text-align:center;padding:80px 20px;opacity:0.3;font-size:15px}
 
@@ -302,13 +310,10 @@ a:hover{text-decoration:none}
     .sidebar{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap;padding:10px;gap:8px;overflow:visible;backdrop-filter:none}
     .sidebar-head{flex:0 0 100%;border:none;padding:4px 0}
     .section{display:none}
-    
-    
-    
-    .sidebar-foot\{display:none\}
+    .sidebar-foot{display:none}
     .main{padding:18px 14px}
     .main-title{font-size:20px}
-    .grid{columns:2;column-gap:10px}
+    .grid{<?php echo $archive_style === 'grid' ? 'grid-template-columns:repeat(2,1fr)' : 'columns:2'; ?>}
 }
 </style>
 </head>
@@ -369,7 +374,7 @@ a:hover{text-decoration:none}
         <div class="theme-chip"><?php echo esc_html($t['emoji'].' '.$t['label']); ?></div>
     </div>
 
-    <div class="grid">
+    <div class="grid<?php echo $archive_style === 'grid' ? ' is-grid' : ''; ?>">
         <?php if($notes->have_posts()): while($notes->have_posts()): $notes->the_post(); ?>
             <?php
             $pid=get_the_ID();
