@@ -2,7 +2,7 @@
 /*
 Plugin Name: WPNote
 Description: 图文笔记插件，支持emoji文字封面和瀑布流展示
-Version: 1.2.5
+Version: 1.3.0
 */
 
 if (!defined('ABSPATH')) exit;
@@ -154,14 +154,19 @@ class WPNote_Plugin {
         // 封面处理
         $cover_data = array();
         $cover_error = null;
+        $has_image = false;
         
-        // 自动生成MD2Card封面
-        if (!empty($params['auto_cover'])) {
+        // 如果设置了 MD2Card API Key，默认自动生成封面
+        $md2card_key = get_option('wpnote_md2card_api_key', '');
+        $should_auto_cover = !empty($md2card_key) && ($params['auto_cover'] !== false);
+        
+        if ($should_auto_cover) {
             $md2card_result = $this->generate_md2card_cover($post_id, $title, $params);
             if (is_wp_error($md2card_result)) {
                 $cover_error = $md2card_result->get_error_message();
             } else {
                 $cover_data = array_merge($cover_data, $md2card_result);
+                $has_image = !empty($md2card_result['image']);
             }
         }
         
@@ -178,11 +183,21 @@ class WPNote_Plugin {
             $cover_data['bg_color'] = $this->sanitize_hex_color($params['cover']['bg_color']);
             $cover_data['text_color'] = $this->sanitize_hex_color($params['cover']['text_color']);
             $cover_data['style'] = $style;
+            // 保留已生成的图片
+            if ($has_image && empty($cover_data['image'])) {
+                $cover_data['image'] = $cover_data['image'] ?? '';
+            }
         }
         
-        if (!empty($cover_data)) {
-            update_post_meta($post_id, 'wpnote_cover', $cover_data);
+        // 如果没有封面图，设置默认文字封面
+        if (empty($cover_data['image'])) {
+            $cover_data['emoji'] = $cover_data['emoji'] ?? '📝';
+            $cover_data['bg_color'] = $cover_data['bg_color'] ?? '#667eea';
+            $cover_data['text_color'] = $cover_data['text_color'] ?? '#ffffff';
+            $cover_data['style'] = $cover_data['style'] ?? 'gradient';
         }
+        
+        update_post_meta($post_id, 'wpnote_cover', $cover_data);
 
         $response = array(
             'success' => true, 
@@ -406,11 +421,16 @@ class WPNote_Plugin {
         if (!isset($_POST['wpnote_cover_nonce']) || !wp_verify_nonce($_POST['wpnote_cover_nonce'], 'wpnote_cover')) return;
         if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
         if (!current_user_can('edit_post', $post_id)) return;
+        
+        $existing = get_post_meta($post_id, 'wpnote_cover', true);
+        if (!is_array($existing)) $existing = array();
+        
+        // 如果已有封面图，保留
+        $has_image = !empty($existing['image']);
+        
         if (!empty($_POST['wpnote_cover']) && is_array($_POST['wpnote_cover'])) {
             $valid_styles = array('gradient','glass','magazine','cyberpunk','minimalist');
             $style = in_array($_POST['wpnote_cover']['style'], $valid_styles) ? $_POST['wpnote_cover']['style'] : 'gradient';
-            $existing = get_post_meta($post_id, 'wpnote_cover', true);
-            if (!is_array($existing)) $existing = array();
             $cover = array(
                 'emoji' => sanitize_text_field($_POST['wpnote_cover']['emoji']),
                 'bg_color' => $this->sanitize_hex_color($_POST['wpnote_cover']['bg_color']),
@@ -421,6 +441,58 @@ class WPNote_Plugin {
             );
             update_post_meta($post_id, 'wpnote_cover', $cover);
         }
+        
+        // 自动生成 MD2Card 封面（如果没有封面图且设置了 API Key）
+        if (!$has_image && get_option('wpnote_md2card_api_key', '')) {
+            $post = get_post($post_id);
+            if ($post && $post->post_status === 'publish') {
+                $theme = isset($cover['md2card_theme']) ? $cover['md2card_theme'] : 'glassmorphism';
+                $this->try_auto_generate_cover($post_id, $post->post_title, $theme);
+            }
+        }
+    }
+    
+    /**
+     * 尝试自动生成 MD2Card 封面
+     */
+    private function try_auto_generate_cover($post_id, $title, $theme = 'glassmorphism') {
+        $api_key = get_option('wpnote_md2card_api_key', '');
+        if (empty($api_key)) return false;
+        
+        $cats = get_the_terms($post_id, 'wpnote_category');
+        $cat_name = ($cats && !is_wp_error($cats)) ? $cats[0]->name : '';
+        
+        $payload = array(
+            'text' => mb_substr($title, 0, 80),
+            'keywords' => $cat_name,
+            'count' => 1,
+            'theme' => $theme,
+            'width' => 600,
+            'height' => 800,
+        );
+
+        $response = wp_remote_post('https://md2card.cn/api/generate/cover', array(
+            'headers' => array(
+                'x-api-key' => $api_key,
+                'Content-Type' => 'application/json',
+            ),
+            'body' => json_encode($payload),
+            'timeout' => 60,
+        ));
+
+        if (is_wp_error($response)) return false;
+
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if (empty($body['success']) || empty($body['images'][0]['url'])) return false;
+
+        $image_url = $body['images'][0]['url'];
+        $existing = get_post_meta($post_id, 'wpnote_cover', true);
+        if (!is_array($existing)) $existing = array();
+        $existing['image'] = $image_url;
+        $existing['md2card_theme'] = $theme;
+        update_post_meta($post_id, 'wpnote_cover', $existing);
+        
+        return true;
     }
 
     public function admin_assets($hook) {
