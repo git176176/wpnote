@@ -2,7 +2,7 @@
 /*
 Plugin Name: WPNote
 Description: 图文笔记插件，支持emoji文字封面和瀑布流展示
-Version: 1.0.0
+Version: 1.2.3
 */
 
 if (!defined('ABSPATH')) exit;
@@ -139,6 +139,26 @@ class WPNote_Plugin {
             return new WP_Error('error', '创建失败', array('status' => 500));
         }
 
+        // 设置分类和标签（先设置，因为MD2Card需要分类名）
+        if (!empty($params['category'])) {
+            wp_set_object_terms($post_id, $params['category'], 'wpnote_category');
+        }
+        if (!empty($params['tags'])) {
+            wp_set_object_terms($post_id, $params['tags'], 'wpnote_tag');
+        }
+
+        // 封面处理
+        $cover_data = array();
+        
+        // 自动生成MD2Card封面
+        if (!empty($params['auto_cover'])) {
+            $md2card_result = $this->generate_md2card_cover($post_id, $title, $params);
+            if (!is_wp_error($md2card_result)) {
+                $cover_data = array_merge($cover_data, $md2card_result);
+            }
+        }
+        
+        // 手动设置的封面（优先级更高）
         if (!empty($params['cover']) && is_array($params['cover'])) {
             $valid_styles = array('gradient','glass','magazine','cyberpunk','minimalist');
             $style = isset($params['cover']['style']) ? $params['cover']['style'] : 'gradient';
@@ -147,23 +167,80 @@ class WPNote_Plugin {
             } elseif (!in_array($style, $valid_styles)) {
                 $style = 'gradient';
             }
-            $cover_data = array(
-                'emoji' => isset($params['cover']['emoji']) ? sanitize_text_field($params['cover']['emoji']) : '📝',
-                'bg_color' => $this->sanitize_hex_color($params['cover']['bg_color']),
-                'text_color' => $this->sanitize_hex_color($params['cover']['text_color']),
-                'style' => $style,
-            );
+            $cover_data['emoji'] = isset($params['cover']['emoji']) ? sanitize_text_field($params['cover']['emoji']) : '📝';
+            $cover_data['bg_color'] = $this->sanitize_hex_color($params['cover']['bg_color']);
+            $cover_data['text_color'] = $this->sanitize_hex_color($params['cover']['text_color']);
+            $cover_data['style'] = $style;
+        }
+        
+        if (!empty($cover_data)) {
             update_post_meta($post_id, 'wpnote_cover', $cover_data);
         }
 
-        if (!empty($params['category'])) {
-            wp_set_object_terms($post_id, $params['category'], 'wpnote_category');
+        return array(
+            'success' => true, 
+            'post_id' => $post_id, 
+            'url' => get_permalink($post_id),
+            'cover' => $cover_data,
+        );
+    }
+    
+    /**
+     * 生成MD2Card封面
+     */
+    private function generate_md2card_cover($post_id, $title, $params = array()) {
+        $api_key = get_option('wpnote_md2card_api_key', '');
+        if (empty($api_key)) {
+            return new WP_Error('no_api_key', 'MD2Card API Key 未设置');
         }
-        if (!empty($params['tags'])) {
-            wp_set_object_terms($post_id, $params['tags'], 'wpnote_tag');
+        
+        // 获取分类名
+        $cats = get_the_terms($post_id, 'wpnote_category');
+        $cat_name = ($cats && !is_wp_error($cats)) ? $cats[0]->name : '';
+        
+        // 获取主题
+        $md2card_themes = array(
+            'apple-notes','coil-notebook','pop-art','bytedance','alibaba','art-deco',
+            'glassmorphism','warm','minimal','minimalist','dreamy','nature','xiaohongshu',
+            'notebook','darktech','typewriter','watercolor','traditional-chinese','fairytale',
+            'business','japanese-magazine','cyberpunk','meadow-dawn'
+        );
+        $theme = isset($params['cover_theme']) && in_array($params['cover_theme'], $md2card_themes) 
+            ? $params['cover_theme'] 
+            : 'glassmorphism';
+        
+        $payload = array(
+            'text' => mb_substr($title, 0, 80),
+            'keywords' => $cat_name,
+            'count' => 1,
+            'theme' => $theme,
+            'width' => 600,
+            'height' => 800,
+        );
+
+        $response = wp_remote_post('https://md2card.cn/api/generate/cover', array(
+            'headers' => array(
+                'x-api-key' => $api_key,
+                'Content-Type' => 'application/json',
+            ),
+            'body' => json_encode($payload),
+            'timeout' => 60,
+        ));
+
+        if (is_wp_error($response)) {
+            return new WP_Error('api_error', 'MD2Card API请求失败');
         }
 
-        return array('success' => true, 'post_id' => $post_id, 'url' => get_permalink($post_id));
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+
+        if (empty($body['success']) || empty($body['images'][0]['url'])) {
+            return new WP_Error('gen_failed', '封面生成失败');
+        }
+
+        return array(
+            'image' => $body['images'][0]['url'],
+            'md2card_theme' => $theme,
+        );
     }
 
     private function sanitize_hex_color($color) {
@@ -428,10 +505,16 @@ class WPNote_Plugin {
             if (count($colors) < 3) $colors = array('#667eea','#f093fb','#f5576c','#4facfe','#43e97b','#fa709a','#fee140','#30cfd0','#a8edea','#ff9a9e','#ffecd2','#a18cd1','#d299c2','#fef9d7','#89f7fe');
             update_option('wpnote_cover_colors', $colors);
             update_option('wpnote_signature', isset($_POST['wpnote_signature']) && !empty(trim($_POST['wpnote_signature'])) ? sanitize_text_field($_POST['wpnote_signature']) : '');
-            $valid_st = array('clean','warm','dark','gradient','editorial','forest','wine','steel','minimal','custom');
+            $valid_st = array('clean','warm','dark','gradient','editorial','forest','wine','steel','minimal','card','custom');
             $site_tpl = isset($_POST['wpnote_site_template']) && in_array($_POST['wpnote_site_template'], $valid_st) ? $_POST['wpnote_site_template'] : 'clean';
             update_option('wpnote_site_template', $site_tpl);
             update_option('wpnote_custom_css', isset($_POST['wpnote_custom_css']) ? wp_strip_all_tags($_POST['wpnote_custom_css']) : '');
+            // 卡片模板设置
+            update_option('wpnote_card_width', isset($_POST['wpnote_card_width']) ? intval($_POST['wpnote_card_width']) : 1200);
+            update_option('wpnote_card_height', isset($_POST['wpnote_card_height']) ? intval($_POST['wpnote_card_height']) : 85);
+            update_option('wpnote_page_bg_color', isset($_POST['wpnote_page_bg_color']) ? sanitize_hex_color($_POST['wpnote_page_bg_color']) : '#f5f5f7');
+            update_option('wpnote_cover_ratio', isset($_POST['wpnote_cover_ratio']) ? sanitize_text_field($_POST['wpnote_cover_ratio']) : '3/4');
+            update_option('wpnote_cover_width', isset($_POST['wpnote_cover_width']) ? intval($_POST['wpnote_cover_width']) : 45);
             echo '<div class="notice notice-success"><p>设置已保存</p></div>';
         }
 
@@ -504,13 +587,19 @@ class WPNote_Plugin {
         $sig_val = esc_attr(get_option('wpnote_signature', ''));
         $site_template = get_option('wpnote_site_template', 'clean');
         $custom_css = get_option('wpnote_custom_css', '');
+        // 卡片模板设置
+        $card_width = get_option('wpnote_card_width', 1200);
+        $card_height = get_option('wpnote_card_height', 85);
+        $page_bg_color = get_option('wpnote_page_bg_color', '#f5f5f7');
+        $cover_ratio = get_option('wpnote_cover_ratio', '3/4');
+        $cover_width = get_option('wpnote_cover_width', 45);
         echo '<input type="text" name="wpnote_signature" value="' . $sig_val . '" placeholder="留空则显示站点名称和描述" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:8px;">';
         echo '<p style="font-size:12px;color:#888;margin:0;">';
         $blogname = htmlspecialchars(get_bloginfo('name'), ENT_QUOTES, 'UTF-8');
         $blogdesc = htmlspecialchars(get_bloginfo('description'), ENT_QUOTES, 'UTF-8');
         echo '支持文字和 emoji。留空默认显示：' . $blogname . ' · ' . $blogdesc . '</p>';
         echo '</div>';
-        $st_labels = array('clean'=>'clean - 纯净白','warm'=>'warm - 暖调米','dark'=>'dark - 深色系','gradient'=>'gradient - 渐变暖','editorial'=>'editorial - 杂志风','forest'=>'forest - 墨绿系','wine'=>'wine - 暗红系','steel'=>'steel - 蓝灰系','minimal'=>'minimal - 极简线条','custom'=>'custom - 自定义CSS');
+        $st_labels = array('clean'=>'clean - 纯净白','warm'=>'warm - 暖调米','dark'=>'dark - 深色系','gradient'=>'gradient - 渐变暖','editorial'=>'editorial - 杂志风','forest'=>'forest - 墨绿系','wine'=>'wine - 暗红系','steel'=>'steel - 蓝灰系','minimal'=>'minimal - 极简线条','card'=>'card - 卡片悬浮','custom'=>'custom - 自定义CSS');
         $st_opts = '';
         foreach ($st_labels as $tk => $tl) { $sel = ($tk === $site_template) ? 'selected' : ''; $st_opts .= '<option value="' . esc_attr($tk) . '" ' . $sel . '>' . esc_html($tl) . '</option>'; }
         $custom_css_val = esc_textarea($custom_css);
@@ -520,6 +609,39 @@ class WPNote_Plugin {
         echo '<textarea name="wpnote_custom_css" id="custom_css_area" rows="6" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:monospace;resize:vertical;display:' . $tpl_display . ';">' . $custom_css_val . '</textarea>';
         echo '<p style="font-size:12px;color:#888;margin:8px 0 0;">自定义CSS叠加在笔记页模板之上。选择「custom」后可在下方输入自定义样式。</p>';
         echo '</div>';
+        
+        // 卡片模板设置
+        echo '<div class="wpnote-card2" id="card-settings" style="display:' . ($site_template === 'card' ? 'block' : 'none') . ';">';
+        echo '<h2>🎨 卡片模板设置</h2>';
+        echo '<p style="font-size:12px;color:#888;margin:0 0 16px;">以下设置仅在选择「card - 卡片悬浮」模板时生效</p>';
+        echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
+        echo '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">卡片宽度 (px)</label>';
+        echo '<input type="number" name="wpnote_card_width" value="' . esc_attr($card_width) . '" min="600" max="1600" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;"></div>';
+        echo '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">卡片高度 (%)</label>';
+        echo '<input type="number" name="wpnote_card_height" value="' . esc_attr($card_height) . '" min="50" max="95" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;"></div>';
+        echo '</div>';
+        echo '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
+        echo '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">封面占比 (%)</label>';
+        echo '<input type="number" name="wpnote_cover_width" value="' . esc_attr($cover_width) . '" min="25" max="60" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;"></div>';
+        echo '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">封面比例</label>';
+        $ratio_opts = array('3/4'=>'3:4 (小红书)','2/3'=>'2:3','4/5'=>'4:5','1/1'=>'1:1 正方形','9/16'=>'9:16 竖屏');
+        $ratio_select = '<select name="wpnote_cover_ratio" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;">';
+        foreach ($ratio_opts as $rv => $rl) { $rsel = ($rv === $cover_ratio) ? 'selected' : ''; $ratio_select .= '<option value="' . esc_attr($rv) . '" ' . $rsel . '>' . esc_html($rl) . '</option>'; }
+        $ratio_select .= '</select>';
+        echo $ratio_select . '</div>';
+        echo '</div>';
+        echo '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">页面背景色</label>';
+        echo '<input type="color" name="wpnote_page_bg_color" value="' . esc_attr($page_bg_color) . '" style="width:100%;height:44px;border:1px solid #ddd;border-radius:8px;cursor:pointer;"></div>';
+        echo '</div>';
+        
+        // JS控制显示隐藏
+        echo '<script>
+        document.getElementById("st_select").addEventListener("change", function(){
+            var cardSettings = document.getElementById("card-settings");
+            cardSettings.style.display = this.value === "card" ? "block" : "none";
+        });
+        </script>';
+        
         echo '<div class="wpnote-card2"><h2>文字封面预设颜色</h2>';
         echo '<p style="font-size:12px;color:#646970;margin:0 0 12px;">最多15个颜色，写笔记时可选</p>';
         echo '<div class="wpnote-color-grid">' . $colors_html . '</div></div>';
@@ -531,15 +653,31 @@ class WPNote_Plugin {
     public function load_template() {
         if (is_singular('wpnote')) {
             add_filter('body_class', function($classes) { $classes[] = 'wpnote-single'; return $classes; });
-            $file = WPNOTE_PLUGIN_DIR . 'templates/single.php';
+            
+            // 支持card模板
+            $site_tpl = get_option('wpnote_site_template', 'clean');
+            if ($site_tpl === 'card') {
+                $file = WPNOTE_PLUGIN_DIR . 'templates/single-card.php';
+            } else {
+                $file = WPNOTE_PLUGIN_DIR . 'templates/single.php';
+            }
+            
             if (file_exists($file)) {
                 include $file;
                 exit;
             }
         }
 
-        if (is_post_type_archive('wpnote')) {
+        if (is_post_type_archive('wpnote') || is_tax('wpnote_category')) {
             add_filter('body_class', function($classes) { $classes[] = 'wpnote-archive'; return $classes; });
+            
+            // 确保查询有结果
+            global $wp_query;
+            if ($wp_query->is_404()) {
+                $wp_query->is_404 = false;
+                status_header(200);
+            }
+            
             $file = WPNOTE_PLUGIN_DIR . 'templates/archive.php';
             if (file_exists($file)) {
                 include $file;

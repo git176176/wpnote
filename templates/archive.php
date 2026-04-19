@@ -3,7 +3,7 @@
 $site_theme = get_option('wpnote_site_theme', 'default');
 $theme = isset($_GET['theme']) ? sanitize_key($_GET['theme']) : $site_theme;
 $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'recent';
-$cat_filter = isset($_GET['cat']) ? intval($_GET['cat']) : 0;
+$cat_filter = isset($_GET['ncat']) ? intval($_GET['ncat']) : 0;
 
 // 10 套完整主题
 $themes = array(
@@ -303,10 +303,10 @@ a:hover{text-decoration:none}
     <!-- 发现 -->
     <div class="section">
         <div class="section-label">发现</div>
-        <a href="<?php echo esc_url(add_query_arg(array('tab'=>'recent','cat'=>0),$archive_url)); ?>" class="nav-item <?php echo $tab==='recent'&&$cat_filter===0?'active':''; ?>">
+        <a href="<?php echo esc_url(add_query_arg(array('tab'=>'recent','ncat'=>0),$archive_url)); ?>" class="nav-item <?php echo $tab==='recent'&&$cat_filter===0?'active':''; ?>">
             <span class="ico">◷</span><span class="lb">近期笔记</span>
         </a>
-        <a href="<?php echo esc_url(add_query_arg(array('tab'=>'popular','cat'=>0),$archive_url)); ?>" class="nav-item <?php echo $tab==='popular'&&$cat_filter===0?'active':''; ?>">
+        <a href="<?php echo esc_url(add_query_arg(array('tab'=>'popular','ncat'=>0),$archive_url)); ?>" class="nav-item <?php echo $tab==='popular'&&$cat_filter===0?'active':''; ?>">
             <span class="ico">🔥</span><span class="lb">热门笔记</span>
         </a>
     </div>
@@ -314,12 +314,12 @@ a:hover{text-decoration:none}
     <!-- 分类 -->
     <div class="section">
         <div class="section-label">分类</div>
-        <a href="<?php echo esc_url(add_query_arg(array('cat'=>0,'tab'=>$tab),$archive_url)); ?>" class="cat-item <?php echo $cat_filter===0?'active':''; ?>">
+        <a href="<?php echo esc_url(add_query_arg(array('ncat'=>0,'tab'=>$tab),$archive_url)); ?>" class="cat-item <?php echo $cat_filter===0?'active':''; ?>">
             <span>☰</span><span class="lb">全部笔记</span>
         </a>
         <?php foreach($cats as $c): if(is_wp_error($c))continue; ?>
             <?php $cnt=get_posts(array('post_type'=>'wpnote','tax_query'=>array(array('taxonomy'=>'wpnote_category','field'=>'term_id','terms'=>$c->term_id)),'fields'=>'ids','posts_per_page'=>-1)); ?>
-            <a href="<?php echo esc_url(add_query_arg(array('cat'=>$c->term_id,'tab'=>$tab),$archive_url)); ?>" class="cat-item <?php echo $cat_filter===$c->term_id?'active':''; ?>">
+            <a href="<?php echo esc_url(add_query_arg(array('ncat'=>$c->term_id,'tab'=>$tab),$archive_url)); ?>" class="cat-item <?php echo $cat_filter===$c->term_id?'active':''; ?>">
                 <span>▸</span><span class="lb"><?php echo esc_html($c->name); ?></span><span class="ct"><?php echo count($cnt); ?></span>
             </a>
         <?php endforeach; ?>
@@ -330,7 +330,7 @@ a:hover{text-decoration:none}
         <div class="section-label">搜索</div>
         <form method="get" action="<?php echo esc_url($archive_url); ?>">
             <input type="hidden" name="tab" value="<?php echo esc_attr($tab); ?>">
-            <input type="hidden" name="cat" value="<?php echo esc_attr($cat_filter); ?>">
+            <input type="hidden" name="ncat" value="<?php echo esc_attr($cat_filter); ?>">
             <input type="text" name="s" placeholder="搜索笔记…" value="<?php echo isset($_GET['s'])?esc_attr($_GET['s']):''; ?>">
         </form>
     </div>
