@@ -2,7 +2,7 @@
 /*
 Plugin Name: WPNote
 Description: 图文笔记插件，支持emoji文字封面和瀑布流展示
-Version: 1.2.3
+Version: 1.2.4
 */
 
 if (!defined('ABSPATH')) exit;
@@ -668,7 +668,7 @@ class WPNote_Plugin {
             }
         }
 
-        if (is_post_type_archive('wpnote') || is_tax('wpnote_category')) {
+        if (is_post_type_archive('wpnote') || is_tax('wpnote_category') || is_tax('wpnote_tag')) {
             add_filter('body_class', function($classes) { $classes[] = 'wpnote-archive'; return $classes; });
             
             // 确保查询有结果

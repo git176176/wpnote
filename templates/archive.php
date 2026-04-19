@@ -5,6 +5,23 @@ $theme = isset($_GET['theme']) ? sanitize_key($_GET['theme']) : $site_theme;
 $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'recent';
 $cat_filter = isset($_GET['ncat']) ? intval($_GET['ncat']) : 0;
 
+// 标签过滤
+$tag_filter = 0;
+if (is_tax('wpnote_tag')) {
+    $tag_term = get_queried_object();
+    if ($tag_term && !is_wp_error($tag_term)) {
+        $tag_filter = $tag_term->term_id;
+    }
+}
+
+// 分类过滤
+if (is_tax('wpnote_category')) {
+    $cat_term = get_queried_object();
+    if ($cat_term && !is_wp_error($cat_term)) {
+        $cat_filter = $cat_term->term_id;
+    }
+}
+
 // 10 套完整主题
 $themes = array(
     'default' => array(
@@ -114,6 +131,10 @@ $t = $themes[$theme];
 
 $args = array('post_type'=>'wpnote','posts_per_page'=>30,'post_status'=>'publish');
 if ($cat_filter>0) $args['tax_query'] = array(array('taxonomy'=>'wpnote_category','field'=>'term_id','terms'=>$cat_filter));
+if ($tag_filter>0) {
+    if (!isset($args['tax_query'])) $args['tax_query'] = array();
+    $args['tax_query'][] = array('taxonomy'=>'wpnote_tag','field'=>'term_id','terms'=>$tag_filter);
+}
 if ($tab==='popular'){ $args['orderby']='comment_count'; $args['order']='DESC'; }
 else{ $args['orderby']='date'; $args['order']='DESC'; }
 $notes = new WP_Query($args);
@@ -340,7 +361,8 @@ a:hover{text-decoration:none}
 <main class="main">
     <div class="main-head">
         <div class="main-title">
-            <?php if($cat_filter>0){ $o=get_term($cat_filter,'wpnote_category'); echo esc_html($o?$o->name:'笔记'); }
+            <?php if($tag_filter>0){ $tg=get_term($tag_filter,'wpnote_tag'); echo '🏷️ ' . esc_html($tg?$tg->name:'标签'); }
+                  elseif($cat_filter>0){ $o=get_term($cat_filter,'wpnote_category'); echo esc_html($o?$o->name:'笔记'); }
                   else{ echo $tab==='popular'?'🔥 热门笔记':'◷ 最新笔记'; } ?>
             <small><?php echo $notes->found_posts; ?> 篇</small>
         </div>
