@@ -2,7 +2,7 @@
 /*
 Plugin Name: WPNote
 Description: 图文笔记插件，支持emoji文字封面和瀑布流展示
-Version: 1.2.4
+Version: 1.2.5
 */
 
 if (!defined('ABSPATH')) exit;
@@ -130,8 +130,12 @@ class WPNote_Plugin {
             'post_status' => isset($params['status']) ? $params['status'] : 'publish',
         );
 
+        // 自动生成英文/数字slug
         if (!empty($params['slug'])) {
             $post_data['post_name'] = sanitize_title($params['slug']);
+        } else {
+            // 自动生成：时间戳 + 随机字符
+            $post_data['post_name'] = 'n' . time() . substr(md5($title), 0, 6);
         }
 
         $post_id = wp_insert_post($post_data);
@@ -149,11 +153,14 @@ class WPNote_Plugin {
 
         // 封面处理
         $cover_data = array();
+        $cover_error = null;
         
         // 自动生成MD2Card封面
         if (!empty($params['auto_cover'])) {
             $md2card_result = $this->generate_md2card_cover($post_id, $title, $params);
-            if (!is_wp_error($md2card_result)) {
+            if (is_wp_error($md2card_result)) {
+                $cover_error = $md2card_result->get_error_message();
+            } else {
                 $cover_data = array_merge($cover_data, $md2card_result);
             }
         }
@@ -177,12 +184,18 @@ class WPNote_Plugin {
             update_post_meta($post_id, 'wpnote_cover', $cover_data);
         }
 
-        return array(
+        $response = array(
             'success' => true, 
             'post_id' => $post_id, 
             'url' => get_permalink($post_id),
             'cover' => $cover_data,
         );
+        
+        if ($cover_error) {
+            $response['cover_error'] = $cover_error;
+        }
+        
+        return $response;
     }
     
     /**
@@ -228,13 +241,14 @@ class WPNote_Plugin {
         ));
 
         if (is_wp_error($response)) {
-            return new WP_Error('api_error', 'MD2Card API请求失败');
+            return new WP_Error('api_error', 'MD2Card API请求失败: ' . $response->get_error_message());
         }
 
         $body = json_decode(wp_remote_retrieve_body($response), true);
 
         if (empty($body['success']) || empty($body['images'][0]['url'])) {
-            return new WP_Error('gen_failed', '封面生成失败');
+            $msg = isset($body['message']) ? $body['message'] : '未知错误';
+            return new WP_Error('gen_failed', '封面生成失败: ' . $msg);
         }
 
         return array(
