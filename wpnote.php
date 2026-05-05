@@ -2,7 +2,7 @@
 /*
 Plugin Name: WPNote
 Description: 图文笔记插件，支持emoji文字封面和瀑布流展示
-Version: 1.3.4
+Version: 1.3.5
 */
 
 if (!defined('ABSPATH')) exit;
@@ -183,11 +183,11 @@ class WPNote_Plugin {
             $cover_data['bg_color'] = $this->sanitize_hex_color($params['cover']['bg_color']);
             $cover_data['text_color'] = $this->sanitize_hex_color($params['cover']['text_color']);
             $cover_data['style'] = $style;
-            // 保留已生成的图片
-            if ($has_image && empty($cover_data['image'])) {
-                $cover_data['image'] = $cover_data['image'] ?? '';
-            }
+            // 图片已通过array_merge合并，无需额外处理
         }
+        
+        // 设置封面类型
+        $cover_data['cover_type'] = $has_image ? 'md2card' : get_option('wpnote_default_cover_type', 'md2card');
         
         // 如果没有封面图，设置默认文字封面
         if (empty($cover_data['image'])) {
@@ -332,13 +332,14 @@ class WPNote_Plugin {
         
         // 检查是否需要转换为webp
         $convert_to_webp = get_option('wpnote_convert_webp', true); // 默认开启webp转换
-        $final_ext = ($convert_to_webp && $original_ext !== 'webp') ? 'webp' : $original_ext;
+        $final_ext = $original_ext; // 默认保持原格式
         
         // 如果需要转换格式
         if ($convert_to_webp && $original_ext !== 'webp') {
             $converted = $this->convert_to_webp($image_data, $original_ext);
             if (!is_wp_error($converted)) {
                 $image_data = $converted;
+                $final_ext = 'webp'; // 转换成功才改为webp
             }
             // 转换失败则保持原格式
         }
@@ -661,6 +662,10 @@ class WPNote_Plugin {
         $existing['image'] = is_wp_error($local_result) ? $remote_url : $local_result['url'];
         $existing['md2card_theme'] = $theme;
         $existing['image_local'] = !is_wp_error($local_result);
+        // 自动生成封面时设置为md2card类型
+        if (empty($existing['cover_type'])) {
+            $existing['cover_type'] = 'md2card';
+        }
         
         if (!is_wp_error($local_result)) {
             $existing['attachment_id'] = $local_result['attachment_id'];
@@ -742,17 +747,21 @@ class WPNote_Plugin {
         
         $final_url = is_wp_error($local_result) ? $remote_url : $local_result['url'];
         
-        $cover = array(
-            'image' => $final_url,
-            'md2card_theme' => $theme,
-            'image_local' => !is_wp_error($local_result),
-        );
+        // 保留已有的封面设置，只更新图片相关
+        $existing = get_post_meta($post_id, 'wpnote_cover', true);
+        if (!is_array($existing)) $existing = array();
+        
+        $existing['image'] = $final_url;
+        $existing['md2card_theme'] = $theme;
+        $existing['image_local'] = !is_wp_error($local_result);
+        // 生成AI封面后自动设置为md2card类型
+        $existing['cover_type'] = 'md2card';
         
         if (!is_wp_error($local_result)) {
-            $cover['attachment_id'] = $local_result['attachment_id'];
+            $existing['attachment_id'] = $local_result['attachment_id'];
         }
         
-        update_post_meta($post_id, 'wpnote_cover', $cover);
+        update_post_meta($post_id, 'wpnote_cover', $existing);
 
         wp_send_json_success(array(
             'message' => '封面生成成功',
