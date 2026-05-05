@@ -1,0 +1,383 @@
+/*
+ * WPNote v1.0.0 - 小红书风格瀑布流 + 文字封面
+ */
+
+/* ==================== 首页瀑布流 ==================== */
+body.wpnote-archive { background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+
+.wpnote-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 48px 24px;
+    text-align: center;
+    margin-bottom: 32px;
+}
+.wpnote-header h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; }
+.wpnote-header p { font-size: 14px; opacity: 0.85; margin: 0; }
+
+.wpnote-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px 40px;
+    /* CSS 瀑布流：多列布局 */
+    column-count: 3;
+    column-gap: 16px;
+}
+
+@media (max-width: 900px) { .wpnote-grid { column-count: 2; } }
+@media (max-width: 600px) { .wpnote-grid { column-count: 1; } }
+
+/* 单张卡片 */
+.wpnote-card {
+    break-inside: avoid;
+    margin-bottom: 16px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+.wpnote-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+}
+
+/* 文字封面 */
+.wpnote-card-cover {
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    text-align: center;
+    position: relative;
+}
+.wpnote-card-cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.08);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.wpnote-card:hover .wpnote-card-cover::before { opacity: 1; }
+
+.wpnote-card-emoji {
+    font-size: 48px;
+    line-height: 1;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+}
+.wpnote-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    max-height: 2.8em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* 卡片底部信息栏 */
+.wpnote-card-footer {
+    background: #fff;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.wpnote-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+.wpnote-card-time {
+    font-size: 11px;
+    color: #999;
+    white-space: nowrap;
+}
+.wpnote-card-cat {
+    font-size: 11px;
+    color: #667eea;
+    background: rgba(102,126,234,0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wpnote-card-arrow {
+    font-size: 14px;
+    color: #ccc;
+    flex-shrink: 0;
+}
+
+/* 空状态 */
+.wpnote-empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: #999;
+    font-size: 16px;
+}
+
+/* ==================== 帖子详情页 ==================== */
+body.wpnote-single { background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+
+.wpnote-single-container {
+    max-width: 680px;
+    margin: 40px auto;
+    padding: 0 16px;
+}
+
+/* 帖子封面（大号展示） */
+.wpnote-single-cover {
+    border-radius: 20px;
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+    text-align: center;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+}
+.wpnote-single-cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.05);
+}
+.wpnote-single-emoji {
+    font-size: 72px;
+    line-height: 1;
+    margin-bottom: 16px;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    position: relative;
+    z-index: 1;
+}
+.wpnote-single-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    line-height: 1.35;
+    position: relative;
+    z-index: 1;
+}
+
+/* 帖子正文 */
+.wpnote-single-body {
+    background: #fff;
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 24px;
+}
+.wpnote-single-content {
+    font-size: 16px;
+    line-height: 1.85;
+    color: #333;
+}
+.wpnote-single-content p { margin: 0 0 16px; }
+.wpnote-single-content p:last-child { margin-bottom: 0; }
+.wpnote-single-content h2, .wpnote-single-content h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 28px 0 14px;
+}
+.wpnote-single-content ul, .wpnote-single-content ol {
+    margin: 0 0 16px;
+    padding-left: 24px;
+}
+.wpnote-single-content li { margin-bottom: 8px; }
+.wpnote-single-content a { color: #667eea; }
+.wpnote-single-content strong { color: #1a1a1a; font-weight: 600; }
+
+/* 元信息 */
+.wpnote-single-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.wpnote-single-meta .cat {
+    font-size: 12px;
+    color: #667eea;
+    background: rgba(102,126,234,0.1);
+    padding: 4px 12px;
+    border-radius: 16px;
+}
+.wpnote-single-meta .date {
+    font-size: 12px;
+    color: #999;
+}
+.wpnote-single-meta .tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.wpnote-single-meta .tag {
+    font-size: 11px;
+    color: #666;
+    background: #f0f0f0;
+    padding: 3px 10px;
+    border-radius: 12px;
+}
+
+/* 返回按钮 */
+.wpnote-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #667eea;
+    font-size: 14px;
+    text-decoration: none;
+    padding: 8px 16px;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+    transition: background 0.2s;
+}
+.wpnote-back:hover { background: #f0f4ff; color: #667eea; text-decoration: none; }
+
+/* ==================== 后台写笔记界面 ==================== */
+.wpnote-cover-builder {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.wpnote-cover-builder h3 {
+    margin: 0 0 16px;
+    font-size: 14px;
+    color: #333;
+}
+.wpnote-cover-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+.wpnote-cover-field { flex: 1; min-width: 120px; }
+.wpnote-cover-field label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 6px;
+}
+.wpnote-cover-field input[type="text"],
+.wpnote-cover-field input[type="color"] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+}
+.wpnote-cover-field input[type="color"] {
+    height: 40px;
+    padding: 4px;
+    cursor: pointer;
+}
+.wpnote-cover-preview {
+    width: 120px;
+    height: 80px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+.wpnote-cover-preview .emoji { font-size: 28px; line-height: 1; margin-bottom: 4px; }
+.wpnote-cover-preview .title { font-size: 10px; font-weight: 600; margin-top: 2px; line-height: 1.3; max-width: 90px; overflow: hidden; }
+
+/* magazine风格预览 */
+.wpnote-cover-preview.style-magazine {
+    flex-direction: row;
+    padding: 8px;
+    gap: 6px;
+    text-align: left;
+    align-items: flex-end;
+}
+.wpnote-cover-preview.style-magazine .emoji { font-size: 36px; margin: 0; flex-shrink: 0; }
+.wpnote-cover-preview.style-magazine .title { font-size: 9px; text-align: left; max-width: 50px; }
+
+/* cyberpunk风格预览 */
+.wpnote-cover-preview.style-cyberpunk { background: #0d0d1a !important; border: 1px solid #667eea66; }
+.wpnote-cover-preview.style-cyberpunk .title { text-shadow: 0 0 8px #667eea; }
+
+/* minimalist风格预览 */
+.wpnote-cover-preview.style-minimalist { background: #1a1a1a !important; }
+.wpnote-cover-preview.style-minimalist .title { text-transform: uppercase; letter-spacing: .08em; font-weight: 400; }
+
+/* 预色颜色快捷选择 */
+.wpnote-color-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+.wpnote-color-presets button {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+}
+.wpnote-color-presets button:hover { transform: scale(1.15); }
+.wpnote-color-presets button.active { border-color: #333; }
+
+/* 帖子列表中的封面预览（后台） */
+.column-wpnote_cover { width: 80px; }
+.wpnote-admin-cover-preview {
+    width: 60px;
+    height: 40px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+/* 风格选择器 */
+.wpnote-style-selector { margin-top: 16px; border-top: 1px solid #eee; padding-top: 14px; }
+.wpnote-styles { display: flex; gap: 8px; flex-wrap: wrap; }
+.style-radio { cursor: pointer; }
+.style-radio input[type="radio"] { display: none; }
+.style-radio span {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    background: #f0f0f0;
+    color: #555;
+    border: 2px solid transparent;
+    transition: all 0.15s;
+}
+.style-radio input[type="radio"]:checked + span {
+    background: #667eea;
+    color: #fff;
+    border-color: #667eea;
+}
+.style-radio:hover span { background: #e8e8f0; }
