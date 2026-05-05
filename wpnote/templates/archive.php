@@ -382,14 +382,17 @@ a:hover{text-decoration:none}
             $emoji=empty($cover['emoji'])?'📝':$cover['emoji'];
             $bg=empty($cover['bg_color'])?$t['accent']:$cover['bg_color'];
             $md=empty($cover['image'])?'':$cover['image'];
+            // 封面类型判断
+            $cover_type=empty($cover['cover_type']) ? get_option('wpnote_default_cover_type', 'md2card') : $cover['cover_type'];
+            $show_md=($cover_type==='md2card' && !empty($md)) ? $md : '';
             $time=esc_html(get_the_date('m-d'));
             $cats2=get_the_terms($pid,'wpnote_category');
             $fc=($cats2&&!is_wp_error($cats2))?$cats2[0]->name:'';
             $title_plain=wp_strip_all_tags(get_the_title());
             ?>
             <a href="<?php echo esc_url(get_permalink()); ?>" class="card" target="_self">
-                <?php if($md): ?>
-                    <img src="<?php echo esc_url($md); ?>" alt="<?php echo esc_attr($title_plain); ?>" class="card-img">
+                <?php if($show_md): ?>
+                    <img src="<?php echo esc_url($show_md); ?>" alt="<?php echo esc_attr($title_plain); ?>" class="card-img">
                 <?php else: ?>
                     <div class="card-cv" style="background:<?php echo esc_attr($bg); ?>;">
                         <span class="cv-emoji"><?php echo esc_html($emoji); ?></span>

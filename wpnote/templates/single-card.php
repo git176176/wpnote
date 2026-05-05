@@ -6,6 +6,10 @@ $emoji = empty($cover['emoji'])?'📝':$cover['emoji'];
 $bg = empty($cover['bg_color'])?'#667eea':$cover['bg_color'];
 $txt = empty($cover['text_color'])?'#ffffff':$cover['text_color'];
 $mdimg = empty($cover['image'])?'':$cover['image'];
+// 封面类型：md2card 或 text
+$cover_type = empty($cover['cover_type']) ? get_option('wpnote_default_cover_type', 'md2card') : $cover['cover_type'];
+// 根据类型决定最终显示
+$show_mdimg = ($cover_type === 'md2card' && !empty($mdimg)) ? $mdimg : '';
 $cats = get_the_terms($pid,'wpnote_category');
 $tags = get_the_terms($pid,'wpnote_tag');
 $content = apply_filters('the_content',get_post_field('post_content',$pid));
@@ -312,8 +316,8 @@ a{text-decoration:none;color:inherit}
     <!-- 左侧封面 -->
     <div class="cover-section">
         <div class="cover-card">
-            <?php if(!empty($mdimg)): ?>
-                <img src="<?php echo esc_url($mdimg); ?>" alt="<?php echo esc_attr($title); ?>">
+            <?php if(!empty($show_mdimg)): ?>
+                <img src="<?php echo esc_url($show_mdimg); ?>" alt="<?php echo esc_attr($title); ?>">
             <?php else: ?>
                 <div class="cover-emoji">
                     <span class="emoji"><?php echo esc_html($emoji); ?></span>

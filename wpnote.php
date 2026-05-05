@@ -2,7 +2,7 @@
 /*
 Plugin Name: WPNote
 Description: 图文笔记插件，支持emoji文字封面和瀑布流展示
-Version: 1.3.3
+Version: 1.3.4
 */
 
 if (!defined('ABSPATH')) exit;
@@ -458,6 +458,8 @@ class WPNote_Plugin {
         $text_color = empty($cover['text_color']) ? '#ffffff' : $cover['text_color'];
         $style = empty($cover['style']) ? 'gradient' : $cover['style'];
         $md2card_theme = empty($cover['md2card_theme']) ? 'glassmorphism' : $cover['md2card_theme'];
+        // 封面类型：md2card 或 text
+        $cover_type = empty($cover['cover_type']) ? get_option('wpnote_default_cover_type', 'md2card') : $cover['cover_type'];
         $colors = get_option('wpnote_cover_colors', array('#667eea','#f093fb','#f5576c','#4facfe','#43e97b','#fa709a','#fee140','#30cfd0','#a8edea','#ff9a9e','#ffecd2','#a18cd1','#d299c2','#fef9d7','#89f7fe'));
         $title_short = mb_substr($post->post_title, 0, 8);
         $existing_image = empty($cover['image']) ? '' : $cover['image'];
@@ -519,8 +521,28 @@ class WPNote_Plugin {
 
         echo '<div class="wpnote-cover-builder" data-post-id="' . $post->ID . '" data-title="' . esc_attr($title_short) . '" data-style="' . esc_attr($style) . '">';
 
+        // === 封面类型选择 ===
+        echo '<div class="wpnote-cover-type-selector" style="margin-bottom:16px;">';
+        echo '<label style="font-size:13px;font-weight:600;color:#333;display:block;margin-bottom:10px;">🎨 封面类型</label>';
+        echo '<div style="display:flex;gap:10px;">';
+        // AI封面选项
+        echo '<label class="cover-type-option" data-type="md2card" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px 14px;background:' . ($cover_type === 'md2card' ? '#f0f4ff;border:2px solid #667eea' : '#f6f7f7;border:2px solid #ddd') . ';border-radius:8px;cursor:pointer;">';
+        echo '<input type="radio" name="wpnote_cover[cover_type]" value="md2card" ' . checked($cover_type, 'md2card', false) . ' style="width:16px;height:16px;">';
+        echo '<div>';
+        echo '<div style="font-size:14px;font-weight:600;">🖼️ AI封面</div>';
+        echo '<div style="font-size:11px;color:#888;">MD2Card智能生成</div>';
+        echo '</div></label>';
+        // 文字封面选项
+        echo '<label class="cover-type-option" data-type="text" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px 14px;background:' . ($cover_type === 'text' ? '#fff3e0;border:2px solid #ff9800' : '#f6f7f7;border:2px solid #ddd') . ';border-radius:8px;cursor:pointer;">';
+        echo '<input type="radio" name="wpnote_cover[cover_type]" value="text" ' . checked($cover_type, 'text', false) . ' style="width:16px;height:16px;">';
+        echo '<div>';
+        echo '<div style="font-size:14px;font-weight:600;">📝 文字封面</div>';
+        echo '<div style="font-size:11px;color:#888;">Emoji+颜色样式</div>';
+        echo '</div></label>';
+        echo '</div></div>';
+
         // === AI 生成区域 ===
-        echo '<div class="wpnote-ai-section" style="background:#f0f4ff;border:1px solid #d0d8f0;border-radius:10px;padding:14px;margin-bottom:16px;">';
+        echo '<div class="wpnote-ai-section wpnote-cover-section" data-section="md2card" style="background:#f0f4ff;border:1px solid #d0d8f0;border-radius:10px;padding:14px;margin-bottom:16px;' . ($cover_type !== 'md2card' ? 'opacity:0.6;' : '') . '">';
         echo '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
         echo '<label style="font-size:13px;font-weight:600;color:#333;">🖼️ AI封面</label>';
         echo '<select name="wpnote_cover[md2card_theme]" class="wpnote-md2card-theme" style="flex:1;min-width:150px;padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
@@ -533,7 +555,7 @@ class WPNote_Plugin {
         echo '</div>';
 
         // === 文字封面区域 ===
-        echo '<div style="border-top:1px solid #eee;padding-top:14px;">';
+        echo '<div class="wpnote-text-section wpnote-cover-section" data-section="text" style="border-top:1px solid #eee;padding-top:14px;' . ($cover_type !== 'text' ? 'opacity:0.6;' : '') . '">';
         echo '<label style="font-size:13px;font-weight:600;color:#333;display:block;margin-bottom:10px;">📝 文字封面</label>';
         echo '<div class="wpnote-cover-row">';
         echo '<div class="wpnote-cover-field"><label>Emoji</label>';
@@ -571,7 +593,11 @@ class WPNote_Plugin {
         if (!empty($_POST['wpnote_cover']) && is_array($_POST['wpnote_cover'])) {
             $valid_styles = array('gradient','glass','magazine','cyberpunk','minimalist');
             $style = in_array($_POST['wpnote_cover']['style'], $valid_styles) ? $_POST['wpnote_cover']['style'] : 'gradient';
+            // 封面类型
+            $valid_cover_types = array('md2card', 'text');
+            $cover_type = isset($_POST['wpnote_cover']['cover_type']) && in_array($_POST['wpnote_cover']['cover_type'], $valid_cover_types) ? $_POST['wpnote_cover']['cover_type'] : get_option('wpnote_default_cover_type', 'md2card');
             $cover = array(
+                'cover_type' => $cover_type,
                 'emoji' => sanitize_text_field($_POST['wpnote_cover']['emoji']),
                 'bg_color' => $this->sanitize_hex_color($_POST['wpnote_cover']['bg_color']),
                 'text_color' => $this->sanitize_hex_color($_POST['wpnote_cover']['text_color']),
@@ -768,6 +794,10 @@ class WPNote_Plugin {
             // WebP转换设置
             update_option('wpnote_convert_webp', isset($_POST['wpnote_convert_webp']) && $_POST['wpnote_convert_webp'] === '1');
             update_option('wpnote_webp_quality', isset($_POST['wpnote_webp_quality']) ? intval($_POST['wpnote_webp_quality']) : 85);
+            // 默认封面类型设置
+            $valid_cover_types = array('md2card', 'text');
+            $default_cover_type = isset($_POST['wpnote_default_cover_type']) && in_array($_POST['wpnote_default_cover_type'], $valid_cover_types) ? $_POST['wpnote_default_cover_type'] : 'md2card';
+            update_option('wpnote_default_cover_type', $default_cover_type);
             echo '<div class="notice notice-success"><p>设置已保存</p></div>';
         }
 
@@ -817,6 +847,22 @@ class WPNote_Plugin {
         echo '</div>';
         echo '<p style="margin:8px 0 0;font-size:12px;color:#888;">推荐85%，数值越高质量越好但文件越大。60%-100%之间调整。</p>';
         echo '<p style="margin:8px 0 0;font-size:12px;color:#666;background:#e7f3ff;padding:8px;border-radius:6px;">💡 封面图片会自动下载到WordPress媒体库，永久保存不会失效。</p>';
+        echo '</div>';
+        
+        // 默认封面类型设置
+        $default_cover_type = get_option('wpnote_default_cover_type', 'md2card');
+        echo '<div class="wpnote-card2"><h2>🎨 默认封面类型</h2>';
+        echo '<p style="margin:0 0 12px;font-size:13px;color:#666;">新建笔记时默认使用哪种封面？每个笔记仍可单独切换。</p>';
+        echo '<div style="display:flex;gap:12px;">';
+        echo '<label style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:' . ($default_cover_type === 'md2card' ? '#f0f4ff;border:2px solid #667eea' : '#f6f7f7;border:2px solid transparent') . ';border-radius:8px;cursor:pointer;flex:1;">';
+        echo '<input type="radio" name="wpnote_default_cover_type" value="md2card" ' . checked($default_cover_type, 'md2card', false) . ' style="width:18px;height:18px;">';
+        echo '<span style="font-size:14px;"><strong>🖼️ AI封面</strong> <span style="color:#888;font-weight:400;">(MD2Card生成)</span></span>';
+        echo '</label>';
+        echo '<label style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:' . ($default_cover_type === 'text' ? '#fff3e0;border:2px solid #ff9800' : '#f6f7f7;border:2px solid transparent') . ';border-radius:8px;cursor:pointer;flex:1;">';
+        echo '<input type="radio" name="wpnote_default_cover_type" value="text" ' . checked($default_cover_type, 'text', false) . ' style="width:18px;height:18px;">';
+        echo '<span style="font-size:14px;"><strong>📝 文字封面</strong> <span style="color:#888;font-weight:400;">(Emoji+颜色)</span></span>';
+        echo '</label>';
+        echo '</div>';
         echo '</div>';
 
         // 主题皮肤设置

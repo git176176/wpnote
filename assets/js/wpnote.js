@@ -3,6 +3,44 @@
         var builder = document.querySelector('.wpnote-cover-builder');
         if (!builder) return;
 
+        // === 封面类型切换 ===
+        var coverTypeRadios = builder.querySelectorAll('input[name="wpnote_cover[cover_type]"]');
+        var coverTypeOptions = builder.querySelectorAll('.cover-type-option');
+        var sections = builder.querySelectorAll('.wpnote-cover-section');
+
+        function updateCoverTypeUI(selectedType) {
+            // 更新选项卡样式
+            coverTypeOptions.forEach(function(opt) {
+                var type = opt.dataset.type;
+                if (type === selectedType) {
+                    if (type === 'md2card') {
+                        opt.style.background = '#f0f4ff';
+                        opt.style.borderColor = '#667eea';
+                    } else {
+                        opt.style.background = '#fff3e0';
+                        opt.style.borderColor = '#ff9800';
+                    }
+                } else {
+                    opt.style.background = '#f6f7f7';
+                    opt.style.borderColor = '#ddd';
+                }
+            });
+
+            // 更新区域透明度
+            sections.forEach(function(section) {
+                var sectionType = section.dataset.section;
+                section.style.opacity = (sectionType === selectedType) ? '1' : '0.6';
+            });
+        }
+
+        if (coverTypeRadios.length) {
+            coverTypeRadios.forEach(function(radio) {
+                radio.addEventListener('change', function() {
+                    updateCoverTypeUI(this.value);
+                });
+            });
+        }
+
         // === 文字封面相关 ===
         var emojiInput = builder.querySelector('.wpnote-emoji-input');
         var bgInput = builder.querySelector('.wpnote-bg-input');
